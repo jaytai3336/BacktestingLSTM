@@ -1,1 +1,0 @@
-Explroing the usage of LSTM and stock backtesting
