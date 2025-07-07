@@ -14,7 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-df = pd.read_csv('C:\\Users\\Jay Tai\\Documents\\BacktestingLSTM\\data\\MicrosoftStock.csv')
+df = pd.read_csv('data\Learning\MicrosoftStock.csv')
 df['date'] = pd.to_datetime(df['date'])
 df['date'] = sorted(df['date'])
 
