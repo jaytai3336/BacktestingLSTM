@@ -8,7 +8,7 @@ from statsmodels.stats.diagnostic import het_arch, acorr_ljungbox
 import seaborn as sns
 import scipy.stats as stats
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-import traceback
+from tqdm import tqdm
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -84,9 +84,9 @@ class Arima_Garch:
 
         index_list = []
 
-        for i in range(window_size, n - 1):
+        for i in tqdm(range(window_size, n - 1), 'Iteration progress'):
             train = log_returns[i - window_size:i]
-            print(f'{i}/{n-1-window_size}')
+            print(f'{i}/{n-1}')
 
             try:
                 # Fit ARIMA on rolling window
@@ -126,6 +126,19 @@ class Arima_Garch:
         self.results = results
         return results
     
+    def plot_forecast(self):
+            plt.figure(figsize=(10,4))
+            plt.plot(self.results['Actual'].values, label='Actual')
+            plt.plot(self.results['Forecast_Mean'].values, label='Forecast Mean')
+            plt.fill_between(self.results.index,
+                            self.results['Forecast_Mean'] - 1.96 * self.results['Forecast_Std'],
+                            self.results['Forecast_Mean'] + 1.96 * self.results['Forecast_Std'],
+                            color='lightgray', label='95% CI')
+            plt.title("ARIMA-GARCH 1-step Walk-Forward Forecast")
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+
     def forecast_results(self):
         if not hasattr(self, 'results') or self.results.empty:
             print("❌ No forecast results available. Run walk_forward_forecast() first.")
