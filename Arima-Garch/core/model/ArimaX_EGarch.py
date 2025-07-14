@@ -12,7 +12,7 @@ import traceback
 import warnings
 warnings.filterwarnings("ignore")
 
-class Arima_Garch:
+class ArimaX_EGarch:
     def __init__(self):
         self.arima_model = None
         self.residuals = None
