@@ -1,6 +1,7 @@
 {
+	"mode": "test",
 	"data": {
-		"filename": "../data/processed/spy_processed.csv",
+		"filename": "../data/processed/spy_with_sentiment_with_predictions.csv",
 		"columns": [
 			"CLOSE",
 			"VOLUME",
@@ -11,65 +12,59 @@
 			"MACD_Signal",
 			"MACD_Hist",
 			"RSI_10",
-			"BB_Std"
+			"BB_Std",
+			"sentiment_score",
+			"cluster",
+			"y_pred"
 		],
 		"sequence_length": 100,
-		"train_test_split": 0.8,
+		"train_test_split": 0.85,
 		"normalise": true
 	},
 	"training": {
-		"epochs": 100,
-		"batch_size": 500,
-        "generator": true,
+		"epochs": 50,
+		"batch_size": 20,
+        "generator": false,
+		"teaching": false,
         "early_stopping_patience": 10,
         "monitor_metric": "mse"
 	}, 
 	"model": {
 		"loss": "mse",
 		"optimizer": "adam",
-		"learning_rate": 0.003,
-        "metrics":["mse", "mae", "accuracy"],
+		"learning_rate": 0.001,
+        "metrics":["mse"],
 		"save_dir": "Lstm/saved_models",
 		"layers": [
 			{
 				"type": "lstm",
 				"neurons": 128,
-				"input_timesteps": 49,
-				"input_dim": 10,
-				"return_seq": true
-			},
-			{
-				"type": "dropout",
-				"rate": 0.5
-			},
-			{
-				"type": "dense",
-				"neurons": 64,
-				"activation": "relu"
-			},
-			{
-				"type": "lstm",
-				"neurons": 64,
+				"input_timesteps": 99,
+				"input_dim": 13,
 				"return_seq": true
 			},
 			{
 				"type": "dense",
-				"neurons": 32,
+				"neurons":64,
 				"activation": "relu"
-			},
-			{
-				"type": "dense",
-				"neurons": 24,
-				"activation": "relu"
-			},
-			{
-				"type": "lstm",
-				"neurons": 24,
-				"return_seq": false
 			},
 			{
 				"type": "dropout",
-				"rate": 0.3
+				"rate": 0.2
+			},
+			{
+				"type": "lstm",
+				"neurons": 32
+			},
+			{
+				"type": "dropout",
+				"rate": 0.2
+			},
+			{
+				"type": "dense",
+				"neurons": 4,
+				"activation": "relu",
+				"return_seq": true
 			},
 			{
 				"type": "dense",

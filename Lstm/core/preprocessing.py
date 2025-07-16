@@ -2,117 +2,87 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-class DataLoader():
-    def __init__(self, filename, train_test_split, cols):
-        df = pd.read_csv(filename, low_memory=False) # Change when dealing with other datasets
+class TimeSeriesDataLoader:
+    """
+    A class to load and preprocess time series data for LSTM or sequence models.
+
+    Args:
+        filename (str): Path to the CSV file.
+        train_test_split (float): Proportion of data to use for training (e.g., 0.8).
+        cols (list): List of column names to use. First column is assumed to be the target.
+    """
+    def __init__(self, filename, train_test_split=0.8, cols=None):
+        df = pd.read_csv(filename, low_memory=False)
         assert all(c in df.columns for c in cols), "Some columns in `cols` not found in dataset"
+
+        self.cols = cols
+        self.df = df[cols]
         split = int(len(df) * train_test_split)
-        self.df_train = df.get(cols).values[:split]
-        self.df_test = df.get(cols).values[split:]
-        self.len_train = len(self.df_train)
-        self.len_test = len(self.df_test)
-        self.len_train_window = None
-        self.scaler_all = MinMaxScaler()
-        self.scaler_all.fit(self.df_train)
-        self.scaler_target = MinMaxScaler()
-        self.scaler_target.fit(self.df_train[:, [0]])
+        self.train_data = self.df.values[:split]
+        self.test_data = self.df.values[split:]
+        self.seq_len = None
 
-    def get_train_data(self, seq_len, normalise):
-        data_x = []
-        data_y = []
-        for i in range(self.len_train-seq_len):
-            x,y = self.next_window(i, seq_len, normalise)
-            data_x.append(x)
-            data_y.append(y)
-        return np.array(data_x), np.array(data_y)
-    
-    def get_test_data(self, seq_len, normalise):
-        data_x = []
-        data_y = []
-        for i in range(self.len_test-seq_len):
-            x,y = self.next_window(i, seq_len, normalise)
-            data_x.append(x)
-            data_y.append(y)
-        return np.array(data_x), np.array(data_y)
-    
-    def generate_train_batch(self, seq_len, batch_size, normalise):
-        i = 0
-        while True:  # loop forever
-            x_batch = []
-            y_batch = []
-            for b in range(batch_size):
-                if i >= (self.len_train - seq_len):
-                    i = 0  # restart from beginning
-                x, y = self.next_window(i, seq_len, normalise)
-                x_batch.append(x)
-                y_batch.append(y)
-                i += 1
-            yield np.array(x_batch), np.array(y_batch)
+        self.scaler_all = MinMaxScaler().fit(self.train_data)
+        self.scaler_target = MinMaxScaler().fit(self.train_data[:, [0]])  # assume first col is target
 
-
-    # def next_window(self, i, seq_len, normalise):
-    #     window = self.df_train[i:i+seq_len]
-    #     window = self.normalise_window(window, single_window = True)[0] if normalise else window
-    #     x = window[:-1] 
-    #     y = window[-1, [0]] 
-    #     return x,y
-    
-    # def normalise_window(self, window_data, single_window=False):
-    #     """
-    #     Normalize window data by dividing by the first value of each feature and subtracting 1.
-        
-    #     Args:
-    #         window_data (np.ndarray): Shape (n_windows, seq_len, n_features) or (seq_len, n_features) if single_window=True.
-    #         single_window (bool): Whether the input is a single window (2D array).
-        
-    #     Returns:
-    #         np.ndarray: Normalized data with same shape as input.
-        
-    #     Raises:
-    #         ValueError: If input shape is invalid or contains zero in first values.
-    #     """
-    #     normalised_data = []
-    #     window_data = [window_data] if single_window else window_data
-    #     for window in window_data:
-    #         normalised_window = []
-    #         for col_i in range(window.shape[1]):
-    #             normalised_col = [((float(p) / float(window[0, col_i])) - 1) for p in window[:, col_i]]
-    #             normalised_window.append(normalised_col)
-    #         normalised_window = np.array(normalised_window).T # reshape and transpose array back into original multidimensional format
-    #         normalised_data.append(normalised_window)
-    #     return np.array(normalised_data)
-    
-    def normalise_window(self, window_data, single_window=False):
+    def _normalize_window(self, window, single_window=False):
         if single_window:
-            # Normalize features using all-feature scaler
-            normed = self.scaler_all.transform(window_data)
-            return normed
+            return self.scaler_all.transform(window)
         else:
-            # For batch of windows
-            n_windows, seq_len, n_features = window_data.shape
-            reshaped = window_data.reshape(-1, n_features)
+            n_windows, seq_len, n_features = window.shape
+            reshaped = window.reshape(-1, n_features)
             scaled = self.scaler_all.transform(reshaped)
             return scaled.reshape(n_windows, seq_len, n_features)
 
-        
-    def unnormalise(self, data):
+    def _create_sequence(self, data, seq_len, normalise=True):
+        X, y = [], []
+        for i in range(len(data) - seq_len):
+            window = data[i:i + seq_len]
+            if normalise:
+                window = self.scaler_all.transform(window)
+            x = window[:-1]
+            y_val = data[i + seq_len - 1, 0]  # target: first column
+            if normalise:
+                y_val = self.scaler_target.transform([[y_val]])[0][0]
+            X.append(x)
+            y.append(y_val)
+        return np.array(X), np.array(y)
+
+    def get_train_data(self, seq_len, normalise=True):
+        self.seq_len = seq_len
+        return self._create_sequence(self.train_data, seq_len, normalise)
+
+    def get_test_data(self, seq_len, normalise=True):
+        self.seq_len = seq_len
+        return self._create_sequence(self.test_data, seq_len, normalise)
+
+    def generate_train_batch(self, seq_len, batch_size, normalise=True):
         """
-        Inverse transform normalized data.
-        
-        Args:
-            data (np.ndarray): Normalized data with shape (samples, features) or (samples,)
-        
-        Returns:
-            np.ndarray: Data transformed back to original scale.
+        Generator that yields training batches of shape (batch_size, seq_len-1, n_features)
+        and targets of shape (batch_size,).
+        """
+        i = 0
+        while True:
+            x_batch, y_batch = [], []
+            for _ in range(batch_size):
+                if i >= len(self.train_data) - seq_len:
+                    i = 0
+                window = self.train_data[i:i+seq_len]
+                if normalise:
+                    window = self.scaler_all.transform(window)
+                x = window[:-1]
+                y_val = self.train_data[i + seq_len - 1, 0]
+                if normalise:
+                    y_val = self.scaler_target.transform([[y_val]])[0][0]
+                x_batch.append(x)
+                y_batch.append(y_val)
+                i += 1
+            yield np.array(x_batch), np.array(y_batch)
+
+    def inverse_transform_target(self, data):
+        """
+        Inverse transform target data from normalized to original scale.
         """
         if data.ndim == 1:
             data = data.reshape(-1, 1)
         return self.scaler_target.inverse_transform(data).flatten()
-
-    def next_window(self, i, seq_len, normalise):
-        window = self.df_train[i:i+seq_len]
-        if normalise:
-            window = self.normalise_window(window, single_window=True)
-        x = window[:-1]
-        y = window[-1, [0]]
-        return x, y

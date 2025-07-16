@@ -1,31 +1,24 @@
 import pandas as pd
 import numpy as np
+from core.model.ArimaX_EGarch import ARIMAX_EGARCH_Model
 
-import sys
-import os
-folder_path = os.path.abspath('models')
-sys.path.append(folder_path)
+# -------------------------------
+# 🔽 Example usage (customize here)
+# -------------------------------
+if __name__ == "__main__":
+    # Load your CSV or DataFrame
+    df = pd.read_csv("data/processed/spy_sentiment_processed_mini.csv")  # Replace with actual path
+    df['DATE'] = pd.to_datetime(df['DATE'])
+    df.set_index('DATE', inplace=True)
 
-from ArimaX_EGarch import ArimaX_EGarch
+    # Required columns
+    df['log_return'] = np.log(df['CLOSE'] / df['CLOSE'].shift(1))
+    price_col = 'log_return'
+    exog_cols = ['sentiment_score', 'cluster']
 
-import warnings
-warnings.filterwarnings("ignore")
+    # Drop NaNs
+    df = df[[price_col] + exog_cols].dropna()
 
-# Data loading and preprocessing
-df = pd.read_excel('data/raw/SnP futures intraday.xlsx')
-df = df.rename(columns={'Time at end of bar': 'DATE', 'OPEN': 'OPEN', 'HIGH': 'HIGH',
-                       'LOW': 'LOW', 'CLOSE': 'CLOSE', 'VOLUME': 'VOLUME'})
-df['DATE'] = pd.to_datetime(df['DATE'])
-df = df.sort_values('DATE')
-df.index = df['DATE']
-
-log_returns = np.log(df['CLOSE']).diff().dropna()
-
-# tweet score
-tweets = df[['tweet']]
-
-model = ArimaX_EGarch()
-# model.verify(log_returns, tweets)
-
-model.walk_forward_forecast(log_returns)
-model.plot_forecast()
+    model = ARIMAX_EGARCH_Model(arima_order=(1,1,1), garch_order=(1,1))
+    results = model.fit_walk_forward(df[price_col], df[exog_cols])
+    model.evaluate_and_plot()
