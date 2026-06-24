@@ -133,9 +133,16 @@ wavelet/SSA variants (v3, v4), is the natural next step (see
 ```bash
 pip install -r requirements.txt
 
-# Fit ARIMA-GARCH and generate forecasts
+# Fit ARIMA-GARCH and generate forecasts (regenerates its own input from raw OHLCV data)
 python Arima-Garch/Arima_Garch_Training.py
+```
 
+The LSTM scripts below require `spy_processed.csv` / `spy_sentiment_processed.csv`
+in `data/processed/` (see the [data note](#data) above — these aren't included or
+regenerable from this repo, so you'll need your own equivalent file with the same
+columns to run these):
+
+```bash
 # Train the technical-indicators LSTM
 python Lstm/training/Lstm_training_technicals.py
 
