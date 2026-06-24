@@ -27,6 +27,13 @@ predictability lives — linear time-series structure vs. nonlinear pattern lear
 - **Split:** 80/20 train/test, evaluated with walk-forward validation to approximate
   real-world deployment (no lookahead)
 
+> **Note on data files:** the full processed datasets (`spy_processed.csv`,
+> `spy_sentiment_processed.csv`, raw intraday data) are too large for git and are
+> excluded via `.gitignore`. Small samples (`*_sample.csv`, 500 rows) are included
+> so the data shape and feature set are inspectable without downloading anything.
+> To regenerate the full datasets, run the preprocessing scripts against your own
+> intraday data source.
+
 ## Models
 
 | Model | Inputs | Status |

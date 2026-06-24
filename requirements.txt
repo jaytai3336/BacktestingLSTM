@@ -1,0 +1,12 @@
+arch
+keras
+tensorflow
+matplotlib
+numpy
+pandas
+scipy
+seaborn
+scikit-learn
+statsmodels
+tqdm
+openpyxl
