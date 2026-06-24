@@ -31,8 +31,12 @@ predictability lives — linear time-series structure vs. nonlinear pattern lear
 > `spy_sentiment_processed.csv`, raw intraday data) are too large for git and are
 > excluded via `.gitignore`. Small samples (`*_sample.csv`, 500 rows) are included
 > so the data shape and feature set are inspectable without downloading anything.
-> To regenerate the full datasets, run the preprocessing scripts against your own
-> intraday data source.
+> The ARIMA-GARCH pipeline regenerates its own input from raw OHLCV data
+> ([`Arima_Garch_preprocessing.py`](Arima-Garch/core/preprocessing/Arima_Garch_preprocessing.py)).
+> The LSTM feature set (technical indicators + sentiment merge) was engineered
+> outside this repo and isn't currently reproducible from a committed script —
+> the LSTM training scripts expect `spy_processed.csv` / `spy_sentiment_processed.csv`
+> to already exist locally and will not run without them.
 
 ## Models
 
