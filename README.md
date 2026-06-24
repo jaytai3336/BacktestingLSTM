@@ -50,6 +50,10 @@ are in [`Lstm/config.json`](Lstm/config.json) and [`Lstm/config2.json`](Lstm/con
 
 ## Results
 
+> The numbers and charts below are reproduced in
+> [`notebooks/Comparison.ipynb`](notebooks/Comparison.ipynb), which loads the same
+> saved outputs and computes the same metrics — open it to verify or rerun the analysis.
+
 ### ARIMA-GARCH
 
 Residual diagnostics on the fitted model show the ACF/PACF of residuals are
