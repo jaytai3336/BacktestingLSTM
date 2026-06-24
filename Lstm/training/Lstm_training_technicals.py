@@ -9,7 +9,7 @@ import json
 
 def main():
     # Load configuration
-    configs = json.load(open('Lstm\config.json', 'r'))
+    configs = json.load(open(os.path.join('Lstm', 'config.json'), 'r'))
     if not os.path.exists(configs['model']['save_dir']): os.makedirs(configs['model']['save_dir'])
 
     # Step 1: Load and preprocess data
