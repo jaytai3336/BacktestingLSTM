@@ -1,13 +1,8 @@
 **/__pycache__/
 
-# Full-size processed datasets — regenerate locally, or see README for download link.
-# Small samples (*_sample.csv) are kept in git so the repo structure is inspectable.
-data/processed/spy_processed.csv
-data/processed/spy_sentiment_processed.csv
-
-# Raw intraday price data is large and excluded — see README for source.
-# sentiment_analysis.csv is small enough to keep as-is.
-data/raw/*.xlsx
+# Data is not included in this repo (see README's Data section for why and
+# what's expected locally to run the training scripts).
+data/
 
 # Old/duplicate model checkpoints — only the best model is kept under Lstm/saved_models/
 Lstm/saved_models/archive/

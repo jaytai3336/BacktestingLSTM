@@ -27,16 +27,20 @@ predictability lives — linear time-series structure vs. nonlinear pattern lear
 - **Split:** 80/20 train/test, evaluated with walk-forward validation to approximate
   real-world deployment (no lookahead)
 
-> **Note on data files:** the full processed datasets (`spy_processed.csv`,
-> `spy_sentiment_processed.csv`, raw intraday data) are too large for git and are
-> excluded via `.gitignore`. Small samples (`*_sample.csv`, 500 rows) are included
-> so the data shape and feature set are inspectable without downloading anything.
+> **Note on data files:** no data is included in this repo. The datasets used
+> (`spy_processed.csv`, `spy_sentiment_processed.csv`, raw intraday OHLCV, and the
+> sentiment source data) are excluded entirely via `.gitignore` — both for size
+> and because the feature-engineering step that produces them isn't fully
+> reproducible from a committed script (see below). All scripts that need data
+> take a `--data-path` argument rather than assuming a fixed location, so you can
+> point them at your own equivalent files.
+>
 > The ARIMA-GARCH pipeline regenerates its own input from raw OHLCV data
 > ([`Arima_Garch_preprocessing.py`](Arima-Garch/core/preprocessing/Arima_Garch_preprocessing.py)).
 > The LSTM feature set (technical indicators + sentiment merge) was engineered
 > outside this repo and isn't currently reproducible from a committed script —
-> the LSTM training scripts expect `spy_processed.csv` / `spy_sentiment_processed.csv`
-> to already exist locally and will not run without them.
+> the LSTM scripts expect a CSV with the columns listed above, passed via
+> `--data-path`, and will not run without one.
 
 ## Models
 
@@ -112,43 +116,55 @@ wavelet/SSA variants (v3, v4), is the natural next step (see
 ├── Arima-Garch/
 │   ├── Arima_Garch_Training.py      # ARIMA-GARCH fit + forecast
 │   ├── Arimax_EGarch_Training.py    # ARIMAX-EGARCH variant
+│   ├── core/preprocessing/          # Feature engineering for ARIMA-GARCH (regenerable)
 │   └── results/                     # Forecast output, residual diagnostics
 ├── Lstm/
 │   ├── Lstm_training_sentiments.py  # LSTM v2: technical + sentiment + ARIMA-GARCH features
+│   ├── misc.py                      # Run a saved model over a full dataset, save predictions
 │   ├── training/
 │   │   └── Lstm_training_technicals.py  # LSTM v1: technical indicators only
-│   ├── config.json                  # LSTM v1 config
-│   ├── config2.json                 # LSTM v2 config
+│   ├── config.json                  # LSTM v1 config (expected data shape)
+│   ├── config2.json                 # LSTM v2 config (expected data shape)
 │   └── saved_models/                # Trained model checkpoints + training histories
-├── data/
-│   ├── raw/                         # Raw intraday data
-│   └── processed/                   # Feature-engineered datasets
 └── notebooks/
     ├── EDA.ipynb                    # Exploratory analysis
-    └── Comparison.ipynb             # Model comparison (in progress)
+    └── Comparison.ipynb             # Model comparison, with real computed metrics
 ```
+
+No `data/` directory is included — see the [data note](#data) above for what each
+script expects and how to point it at your own files.
 
 ## How to run
 
 ```bash
 pip install -r requirements.txt
 
-# Fit ARIMA-GARCH and generate forecasts (regenerates its own input from raw OHLCV data)
-python Arima-Garch/Arima_Garch_Training.py
+# Fit ARIMA-GARCH and generate forecasts
+# (regenerates its own input from raw OHLCV data; defaults to data/raw/SnP futures intraday.xlsx,
+# override with --data-path if yours is elsewhere)
+python Arima-Garch/Arima_Garch_Training.py --data-path "path/to/your/intraday_data.xlsx"
 ```
 
-The LSTM scripts below require `spy_processed.csv` / `spy_sentiment_processed.csv`
-in `data/processed/` (see the [data note](#data) above — these aren't included or
-regenerable from this repo, so you'll need your own equivalent file with the same
-columns to run these):
+The LSTM scripts need a CSV with the feature columns listed in the
+[data note](#data) above — bring your own (this repo doesn't include one or a
+script to generate it):
 
 ```bash
-# Train the technical-indicators LSTM
+# Train the technical-indicators LSTM (expects: CLOSE, VOLUME, OPEN, HIGH, LOW,
+# MACD, MACD_Signal, MACD_Hist, RSI_10, BB_Std — see Lstm/config.json)
 python Lstm/training/Lstm_training_technicals.py
 
-# Train the sentiment + ARIMA-GARCH fused LSTM
+# Train the sentiment + ARIMA-GARCH fused LSTM (expects config.json's columns plus
+# sentiment_score, cluster — see Lstm/config2.json)
 python Lstm/Lstm_training_sentiments.py
+
+# Run a saved model over a full dataset and save predictions alongside it
+python Lstm/misc.py --data-path "path/to/your/sentiment_processed_data.csv"
 ```
+
+`Lstm_training_technicals.py` and `Lstm_training_sentiments.py` currently read
+their data path from `config.json` / `config2.json` rather than a CLI flag —
+edit the `filename` field in those files to point at your own dataset.
 
 ## Next steps
 
