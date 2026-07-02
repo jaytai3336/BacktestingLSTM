@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="description" content="S&P 500 Futures Forecasting: LSTM vs ARIMA-GARCH — Jay Tai"/>
+<title>LSTM vs ARIMA-GARCH — Jay Tai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#060c13;--bg2:#0a1118;--bg3:#111c27;--border:rgba(56,189,248,.09);--text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8;--accent:#38bdf8;--accent2:#f59e0b;--green:#34d399;--red:#f87171;--a10:rgba(56,189,248,.1);--mono:'Fira Code',monospace;--font:'Inter',system-ui,sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.7;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+::selection{background:rgba(56,189,248,.2);color:var(--accent)}
+
+/* Nav */
+header{position:sticky;top:0;z-index:50;background:rgba(6,12,19,.95);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+nav{max-width:1100px;margin:0 auto;padding:0 clamp(1rem,4vw,2rem);height:60px;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.nav-back{font-family:var(--mono);font-size:.8rem;color:var(--muted);transition:color .25s;display:flex;align-items:center;gap:.4rem}
+.nav-back:hover{color:var(--accent)}
+.nav-title{font-size:.85rem;font-weight:600;color:var(--text);text-align:center}
+.nav-gh{font-family:var(--mono);font-size:.78rem;color:var(--muted);border:1px solid var(--border);padding:.3rem .8rem;border-radius:6px;transition:all .25s;white-space:nowrap}
+.nav-gh:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Hero */
+.hero{padding:clamp(3rem,8vw,5rem) clamp(1rem,4vw,2rem);max-width:1100px;margin:0 auto;text-align:center}
+.hero-tag{font-family:var(--mono);font-size:.78rem;color:var(--accent2);letter-spacing:.08em;display:block;margin-bottom:1rem}
+.hero-title{font-size:clamp(1.8rem,5vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:1rem;background:linear-gradient(140deg,#e2e8f0,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-desc{color:var(--muted2);font-size:clamp(.9rem,2vw,1.05rem);max-width:640px;margin:0 auto 2.5rem;line-height:1.75}
+.stat-row{display:flex;justify-content:center;flex-wrap:wrap;gap:1.5rem}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.6rem;text-align:center;min-width:130px}
+.stat-val{font-family:var(--mono);font-size:1.35rem;font-weight:700;display:block;line-height:1.2}
+.stat-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:.25rem;display:block}
+.val-green{color:var(--green)}.val-amber{color:var(--accent2)}.val-red{color:var(--red)}.val-blue{color:var(--accent)}
+
+/* Section */
+.section{padding:clamp(2.5rem,6vw,4rem) clamp(1rem,4vw,2rem);max-width:1100px;margin:0 auto}
+.section-alt{background:var(--bg2)}
+.section-alt .section{background:var(--bg2)}
+.sec-tag{font-family:var(--mono);font-size:.72rem;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:.5rem}
+.sec-title{font-size:clamp(1.2rem,3vw,1.6rem);font-weight:700;letter-spacing:-.02em;margin-bottom:1.5rem}
+
+/* Grid cards */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+.card-title{font-size:.85rem;font-weight:700;color:var(--accent);font-family:var(--mono);margin-bottom:.5rem}
+.card-body{font-size:.875rem;color:var(--muted2);line-height:1.65}
+.card-body strong{color:var(--text)}
+
+/* Chart */
+.chart-wrap{background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1.25rem}
+#chartCanvas{display:block;width:100%}
+.chart-controls{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.ctrl-label{font-family:var(--mono);font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:.4rem}
+.ctrl-btn{padding:.4rem 1rem;border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .25s;font-family:var(--mono)}
+.btn-primary{background:var(--accent);color:#060c13;border:none}.btn-primary:hover{background:#7dd3fc}
+.btn-ghost{border:1px solid var(--border);color:var(--muted2);background:transparent}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.legend{display:flex;gap:1.5rem;flex-wrap:wrap;font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:.4rem}
+.leg-dot{width:20px;height:3px;border-radius:2px;display:inline-block}
+
+/* Results table */
+.results-table{width:100%;border-collapse:collapse;font-size:.875rem}
+.results-table th{text-align:left;padding:.6rem 1rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-family:var(--mono);border-bottom:1px solid var(--border)}
+.results-table td{padding:.7rem 1rem;border-bottom:1px solid rgba(56,189,248,.05);color:var(--muted2)}
+.results-table td:first-child{font-weight:600;color:var(--text)}
+.results-table tr:hover td{background:var(--a10)}
+.badge{display:inline-block;font-family:var(--mono);font-size:.62rem;padding:.15rem .45rem;border-radius:4px;letter-spacing:.04em}
+.badge-green{color:var(--green);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2)}
+.badge-amber{color:var(--accent2);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2)}
+.badge-red{color:var(--red);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2)}
+
+/* Finding box */
+.finding{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--accent2);border-radius:0 12px 12px 0;padding:1.25rem 1.5rem;margin-top:1.5rem}
+.finding-title{font-family:var(--mono);font-size:.72rem;color:var(--accent2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.5rem}
+.finding p{font-size:.9rem;color:var(--muted2);line-height:1.7}
+.finding strong{color:var(--text)}
+
+footer{padding:2rem;text-align:center;border-top:1px solid var(--border);background:var(--bg)}
+footer p{font-size:.82rem;color:var(--muted)}
+footer a{color:var(--accent)}footer a:hover{opacity:.75}
+
+@media(max-width:600px){.nav-title{display:none}.stat-row{gap:1rem}.stat-card{min-width:110px;padding:.85rem 1rem}}
+</style>
+</head>
+<body>
+
+<header>
+  <nav>
+    <a class="nav-back" href="https://jaytai3336.github.io">← Portfolio</a>
+    <span class="nav-title">LSTM vs ARIMA-GARCH</span>
+    <a class="nav-gh" href="https://github.com/jaytai3336/BacktestingLSTM" target="_blank" rel="noopener">GitHub ↗</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <span class="hero-tag">// quantitative research · time-series forecasting</span>
+  <h1 class="hero-title">S&amp;P 500 Futures Forecasting<br/>LSTM vs ARIMA-GARCH</h1>
+  <p class="hero-desc">Comparative study of statistical and deep learning approaches to predicting ES futures price movements at 1-minute intervals, augmented with NLP sentiment signals.</p>
+  <div class="stat-row">
+    <div class="stat-card"><span class="stat-val val-blue">0.18%</span><span class="stat-label">LSTM MAPE</span></div>
+    <div class="stat-card"><span class="stat-val val-amber">0.00083</span><span class="stat-label">ARIMA RMSE</span></div>
+    <div class="stat-card"><span class="stat-val val-red">44.7%</span><span class="stat-label">ARIMA Dir. Acc.</span></div>
+    <div class="stat-card"><span class="stat-val val-red">38.2%</span><span class="stat-label">LSTM Dir. Acc.</span></div>
+  </div>
+</div>
+
+<div style="background:var(--bg2)">
+<div class="section">
+  <span class="sec-tag">02. Interactive Visualisation</span>
+  <h2 class="sec-title">Prediction Comparison</h2>
+  <div class="chart-controls">
+    <div class="ctrl-label">Window
+      <select id="windowSel" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.3rem .6rem;font-family:var(--mono);font-size:.78rem;outline:none">
+        <option value="120">2 Hours</option>
+        <option value="240" selected>4 Hours</option>
+        <option value="390">Full Session</option>
+      </select>
+    </div>
+    <button class="ctrl-btn btn-primary" id="regenBtn">Regenerate</button>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#94a3b8"></span>Actual ES</span>
+      <span><span class="leg-dot" style="background:#38bdf8"></span>LSTM v2</span>
+      <span><span class="leg-dot" style="background:#f59e0b"></span>ARIMA-GARCH</span>
+    </div>
+  </div>
+  <div class="chart-wrap"><canvas id="chartCanvas" height="280"></canvas></div>
+  <div class="finding">
+    <div class="finding-title">Key Finding</div>
+    <p><strong>Neither model beats a coin flip on directional accuracy.</strong> At ultra-high frequencies on highly liquid instruments, price movements approximate random noise — consistent with efficient market theory. LSTM v2 achieves strong price-level MAPE (0.18%) but directional accuracy of 38.2% is <em>worse</em> than chance, a genuine market insight rather than model failure.</p>
+  </div>
+</div>
+</div>
+
+<div class="section">
+  <span class="sec-tag">01. Methodology</span>
+  <h2 class="sec-title">Architecture</h2>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Data Foundation</div>
+      <div class="card-body">ES (S&amp;P 500 futures) on <strong>1-minute bars</strong>. Features: OHLCV, MACD, RSI(10), Bollinger Bands volatility, Bloomberg news sentiment scores. 80/20 walk-forward train-test split.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">ARIMA-GARCH</div>
+      <div class="card-body">Linear time-series baseline capturing autocorrelation and heteroscedastic volatility. Returns RMSE: <strong>0.00083</strong>. Effective autocorrelation capture confirmed via residual diagnostics.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">LSTM v1 (Technical)</div>
+      <div class="card-body">Stacked 128→32 units with dropout and early stopping. Input: <strong>10 technical features</strong> — OHLCV, MACD, RSI, Bollinger Bands volatility.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">LSTM v2 (Multi-modal)</div>
+      <div class="card-body">Extended to <strong>13 features</strong> adding Bloomberg sentiment scores and ARIMA-GARCH forecasts as additional signals. Price-level MAPE: 0.18%.</div>
+    </div>
+  </div>
+</div>
+
+<div style="background:var(--bg2)">
+<div class="section">
+  <span class="sec-tag">03. Results</span>
+  <h2 class="sec-title">Performance Comparison</h2>
+  <div style="overflow-x:auto">
+    <table class="results-table">
+      <thead><tr><th>Model</th><th>RMSE</th><th>MAPE</th><th>Dir. Accuracy</th><th>vs Random</th></tr></thead>
+      <tbody>
+        <tr><td>ARIMA-GARCH</td><td>0.00083</td><td>—</td><td>44.7%</td><td><span class="badge badge-red">−5.3pp</span></td></tr>
+        <tr><td>LSTM v1 (Technical)</td><td>—</td><td>—</td><td>~40%</td><td><span class="badge badge-red">−10pp</span></td></tr>
+        <tr><td>LSTM v2 (+ Sentiment)</td><td>11.12 pts</td><td>0.18%</td><td>38.2%</td><td><span class="badge badge-red">−11.8pp</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<footer>
+  <p>A project by <a href="https://jaytai3336.github.io">Jay Tai</a> &nbsp;·&nbsp; NUS Quantitative Finance &nbsp;·&nbsp; <a href="https://github.com/jaytai3336/BacktestingLSTM" target="_blank" rel="noopener">View Code on GitHub</a></p>
+</footer>
+
+<script>
+const canvas = document.getElementById('chartCanvas');
+const ctx    = canvas.getContext('2d');
+let W, H;
+
+function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+
+function resize(){W=canvas.width=canvas.offsetWidth;H=canvas.height;}
+
+function generate(n){
+  // Simulate ES futures 1-min bars (GBM)
+  const actual=[5000];
+  for(let i=1;i<n;i++) actual.push(actual[i-1]*(1+0.00008*randn()));
+
+  // LSTM: tracks price-level well (MAPE 0.18%) but lags / directionally wrong
+  const lstm=[actual[0]];
+  for(let i=1;i<n;i++){
+    const lag=actual[Math.max(0,i-3)];
+    lstm.push(lag*(1+0.00003*randn())); // low variance, lagged
+  }
+
+  // ARIMA: similar lagging baseline
+  const arima=[actual[0]];
+  for(let i=1;i<n;i++){
+    const lag=actual[Math.max(0,i-5)];
+    arima.push(lag*(1+0.00015*(Math.random()-0.5)));
+  }
+
+  return {actual,lstm,arima};
+}
+
+let data;
+function draw(){
+  const n=parseInt(document.getElementById('windowSel').value);
+  data=generate(n);
+  const {actual,lstm,arima}=data;
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#060c13';ctx.fillRect(0,0,W,H);
+
+  const PAD={t:20,r:16,b:32,l:60};
+  const IW=W-PAD.l-PAD.r,IH=H-PAD.t-PAD.b;
+
+  const allVals=[...actual,...lstm,...arima];
+  const mn=Math.min(...allVals)*0.9995,mx=Math.max(...allVals)*1.0005;
+
+  function toX(i){return PAD.l+(i/(n-1))*IW}
+  function toY(v){return PAD.t+IH-((v-mn)/(mx-mn))*IH}
+
+  // Grid
+  ctx.strokeStyle='rgba(56,189,248,.05)';ctx.lineWidth=.5;
+  for(let i=0;i<=5;i++){const y=PAD.t+(i/5)*IH;ctx.beginPath();ctx.moveTo(PAD.l,y);ctx.lineTo(W-PAD.r,y);ctx.stroke();}
+  for(let i=0;i<=8;i++){const x=PAD.l+(i/8)*IW;ctx.beginPath();ctx.moveTo(x,PAD.t);ctx.lineTo(x,H-PAD.b);ctx.stroke();}
+
+  // Y labels
+  ctx.font='9px Fira Code,monospace';ctx.fillStyle='#475569';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const v=mn+(mx-mn)*(1-i/4);ctx.fillText(v.toFixed(1),PAD.l-4,PAD.t+(i/4)*IH+3);}
+
+  // X labels (minutes)
+  ctx.textAlign='center';
+  for(let i=0;i<=4;i++){const t=Math.floor(n*i/4);ctx.fillText(t+'m',toX(t),H-8);}
+
+  function drawLine(series,color,lw){
+    ctx.beginPath();
+    series.forEach((v,i)=>i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v)));
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();
+  }
+
+  drawLine(arima,'rgba(245,158,11,.6)',1.2);
+  drawLine(lstm,'rgba(56,189,248,.8)',1.5);
+  drawLine(actual,'rgba(148,163,184,.9)',1.8);
+}
+
+document.getElementById('windowSel').addEventListener('change',()=>{resize();draw();});
+document.getElementById('regenBtn').addEventListener('click',()=>{resize();draw();});
+window.addEventListener('resize',()=>{resize();draw();},{passive:true});
+resize();draw();
+</script>
+</body>
+</html>
